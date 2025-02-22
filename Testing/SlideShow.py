@@ -4,6 +4,7 @@ import tkinter as tk
 from tkinter import filedialog, messagebox
 from PIL import Image, ImageTk
 import os
+import re
 
 class SlideshowApp(tk.Tk):
     def __init__(self):
@@ -100,6 +101,10 @@ class SlideshowApp(tk.Tk):
         self.pause_symbol_label.place(x=10, y=10)
         self.pause_symbol_label.place_forget()
 
+    def natural_sort_key(self, s):
+        return [int(text) if text.isdigit() else text.lower()
+                for text in re.split('([0-9]+)', s)]
+
     def select_files(self):
         file_paths = filedialog.askopenfilenames(
             title='Seleziona immagini',
@@ -114,10 +119,10 @@ class SlideshowApp(tk.Tk):
             ]
         )
         if file_paths:
-            self.image_files = list(file_paths)
+            self.image_files = sorted(list(file_paths), key=lambda x: self.natural_sort_key(os.path.basename(x)))
             self.image_index = 0
             if self.image_files:
-                self.show_next_image()
+                self.show_current_image()
 
     def select_folder(self):
         folder_path = filedialog.askdirectory(
@@ -126,15 +131,16 @@ class SlideshowApp(tk.Tk):
         )
         if folder_path:
             valid_extensions = ('.png', '.jpg', '.jpeg', '.gif', '.bmp')
-            self.image_files = [
+            # Crea una lista ordinata di file usando l'ordinamento naturale
+            self.image_files = sorted([
                 os.path.join(folder_path, f) 
                 for f in os.listdir(folder_path) 
                 if os.path.splitext(f.lower())[1] in valid_extensions
-            ]
+            ], key=lambda x: self.natural_sort_key(os.path.basename(x)))
             
             if self.image_files:
                 self.image_index = 0
-                self.show_next_image()
+                self.show_current_image()
             else:
                 messagebox.showinfo(
                     "Nessuna immagine trovata",
@@ -145,13 +151,20 @@ class SlideshowApp(tk.Tk):
         if not self.paused and self.image_files:
             self.slideshow_job = self.after(self.delay, self.show_next_image)
 
+    def show_current_image(self):
+        if self.image_files:
+            image_path = self.image_files[self.image_index]
+            self.current_image = Image.open(image_path)
+            self.display_image(self.current_image)
+            self.reset_slideshow_timer()
+
     def show_next_image(self, event=None):
         if self.image_files:
             self.image_index = (self.image_index + 1) % len(self.image_files)
             image_path = self.image_files[self.image_index]
             self.current_image = Image.open(image_path)
             self.display_image(self.current_image)
-            self.reset_slideshow_timer()  # Schedule next image display
+            self.reset_slideshow_timer()
 
     def show_previous_image(self, event=None):
         if self.image_files:
@@ -159,7 +172,7 @@ class SlideshowApp(tk.Tk):
             image_path = self.image_files[self.image_index]
             self.current_image = Image.open(image_path)
             self.display_image(self.current_image)
-            self.reset_slideshow_timer()  # Schedule next image display
+            self.reset_slideshow_timer()
 
     def display_image(self, image):
         if image:
@@ -204,7 +217,7 @@ class SlideshowApp(tk.Tk):
         self.symbol_label.place(x=25, y=0)
         if self.symbol_job:
             self.after_cancel(self.symbol_job)
-        self.symbol_job = self.after(3000, self.hide_play_symbol)  # Show play symbol for 3 seconds
+        self.symbol_job = self.after(3000, self.hide_play_symbol)
 
     def hide_play_symbol(self):
         self.symbol_label.place_forget()
@@ -214,7 +227,7 @@ class SlideshowApp(tk.Tk):
         self.pause_symbol_label.place(x=10, y=10)
         if self.pause_symbol_job:
             self.after_cancel(self.pause_symbol_job)
-        self.pause_symbol_job = self.after(3000, self.hide_pause_symbol)  # Show pause symbol for 3 seconds
+        self.pause_symbol_job = self.after(3000, self.hide_pause_symbol)
 
     def hide_pause_symbol(self):
         self.pause_symbol_label.place_forget()
